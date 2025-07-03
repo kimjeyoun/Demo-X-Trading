@@ -9,6 +9,8 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { User } from './users/entities/user.entity'; // User 엔티티 직접 임포트
 import { BinanceModule } from './binance/binance.module';
+import { EventsGateway } from './events/events.gateway';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -49,8 +51,9 @@ import { BinanceModule } from './binance/binance.module';
     UsersModule,
     AuthModule,
     BinanceModule,
+    EventsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, EventsGateway],
 })
 export class AppModule {}
