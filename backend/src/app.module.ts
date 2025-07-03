@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { User } from './users/entities/user.entity'; // User 엔티티 직접 임포트
+import { BinanceModule } from './binance/binance.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { User } from './users/entities/user.entity'; // User 엔티티 직접 �
 
     UsersModule,
     AuthModule,
+    BinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
