@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios'; // HttpModule 임포트
 import { BinanceApiService } from './binance.service';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { BinanceApiService } from './binance.service';
       timeout: 5000, // 요청 타임아웃: 5초
       maxRedirects: 5, // 최대 리다이렉트 횟수
     }),
+    EventsModule,
   ],
   providers: [BinanceApiService], // 서비스는 다음 단계에서 추가
   exports: [BinanceApiService],
