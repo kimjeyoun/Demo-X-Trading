@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { socket } from '../services/socket';
+import debounce from 'lodash.debounce';
 
 interface BinanceKlineData {
   k: {
@@ -64,15 +65,16 @@ export const TradingChart = () => {
     socket.connect();
     socket.on('kline', handleKlineData);
 
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.resize(
-          chartContainerRef.current.clientWidth,
-          chartContainerRef.current.clientHeight,
-        );
-      }
-    };
-    window.addEventListener('resize', handleResize);
+    const handleResize = debounce(() => {
+    if (chartContainerRef.current) {
+      chart.resize(
+        chartContainerRef.current.clientWidth,
+        chartContainerRef.current.clientHeight,
+      );
+    }
+  }, 100);
+
+  window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
