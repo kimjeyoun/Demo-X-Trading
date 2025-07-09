@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
+import { WalletsService } from '../wallets/wallets.service';
 import * as bcrypt from 'bcrypt';
 
 // 서비스 메소드의 반환 타입을 명시적으로 정의 (비밀번호 제외)
@@ -20,6 +21,7 @@ export class UsersService {
     @InjectRepository(User)
     // usersRepository는 데이터베이스의 users 테이블과 직접적으로 소통하는 객체
     private readonly usersRepository: Repository<User>,
+    private readonly walletsService: WalletsService,
   ) {}
 
   /**
@@ -58,6 +60,9 @@ export class UsersService {
       // 하지만 우리가 정의한 반환 타입(UserWithoutPassword) 덕분에 최종 반환 시에는
       // password가 자동으로 제외(타입 체크)됩니다.
       const savedUser = await this.usersRepository.save(newUser);
+
+      // 사용자 생성 후, 해당 사용자의 지갑을 생성합니다.
+      await this.walletsService.createWallet(savedUser);
 
       // 반환하기 전에 명시적으로 password를 제거해주는 것이 가장 안전하고 확실합니다.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
