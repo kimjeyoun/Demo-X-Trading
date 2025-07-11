@@ -1,13 +1,14 @@
 // frontend/src/pages/TradingPage.tsx
 
-import styled from 'styled-components';
-import { TradingChart } from '../components/TradingChart'; // 차트 컴포넌트는 곧 생성
+import styled from "styled-components";
+import { TradingChart } from "../components/TradingChart";
+import OrderPanel from "../components/OrderPanel";
 
 const TradingPageContainer = styled.div`
   display: grid;
   grid-template-areas:
-    'chart order-panel'
-    'chart order-book';
+    "chart order-panel"
+    "chart order-book";
   grid-template-columns: 3fr 1fr; /* 차트가 3, 오른쪽 패널이 1의 비율 */
   grid-template-rows: 1fr 1fr;
   height: 95vh;
@@ -40,7 +41,9 @@ export const TradingPage = () => {
       <ChartContainer>
         <TradingChart />
       </ChartContainer>
-      <OrderPanelContainer>주문 패널</OrderPanelContainer>
+      <OrderPanelContainer>
+        <OrderPanel />
+      </OrderPanelContainer>
       <OrderBookContainer>호가창</OrderBookContainer>
     </TradingPageContainer>
   );
