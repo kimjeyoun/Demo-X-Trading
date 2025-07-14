@@ -32,11 +32,23 @@ export class PositionsService {
     });
 
     if (existingPosition) {
-      // 2. 기존 포지션이 있으면 '물타기/불타기' 로직 실행 (평균 단가, 수량 업데이트)
-      // TODO: 지금은 단순 덮어쓰기. 추후 평균 단가 계산 로직으로 고도화 필요
-      existingPosition.quantity += quantity;
-      existingPosition.margin += margin;
-      // entryPrice, liquidationPrice도 평균값으로 재계산 필요
+      // --- 여기가 수정될 부분입니다 ---
+      // 1. 기존 값들을 명시적으로 숫자로 변환합니다.
+      const existingQuantity = Number(existingPosition.quantity);
+      const existingMargin = Number(existingPosition.margin);
+
+      // 2. 새로운 값(수량, 증거금)을 계산합니다.
+      const newQuantity = existingQuantity + quantity;
+      const newMargin = existingMargin + margin;
+
+      // TODO: 추후 평균 진입 가격(entryPrice) 재계산 로직 추가 필요
+      // const totalValue = (existingQuantity * existingPosition.entryPrice) + (quantity * entryPrice);
+      // existingPosition.entryPrice = totalValue / newQuantity;
+
+      // 3. 계산된 숫자 값을 할당합니다.
+      existingPosition.quantity = newQuantity;
+      existingPosition.margin = newMargin;
+
       return this.positionsRepository.save(existingPosition);
     } else {
       // 3. 기존 포지션이 없으면 새로 생성
