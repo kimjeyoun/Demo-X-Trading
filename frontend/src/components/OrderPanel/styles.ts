@@ -113,6 +113,14 @@ export const InfoGroup = styled.div`
   padding: 8px 0;
 `;
 
+export const ErrorMessage = styled.p`
+  color: #f23645; // 숏 포지션(매도)과 동일한 빨간색
+  font-size: 12px;
+  text-align: center;
+  margin: 10px 0 0; // 위쪽 여백 추가
+  min-height: 15px; // 에러가 없을 때도 공간을 차지하도록 하여 레이아웃 밀림 방지
+`;
+
 export const SubmitButton = styled.button<{ side: 'BUY' | 'SELL' }>`
   margin-top: auto;
   padding: 14px;
@@ -127,5 +135,9 @@ export const SubmitButton = styled.button<{ side: 'BUY' | 'SELL' }>`
 
   &:hover {
     opacity: 0.9;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
