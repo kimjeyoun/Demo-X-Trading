@@ -56,7 +56,7 @@ export class WalletsService {
    * @param userId 사용자 ID
    * @returns 지갑 객체
    */
-  private async findWalletByUserId(userId: string): Promise<Wallet> {
+  async findWalletByUserId(userId: string): Promise<Wallet> {
     const wallet = await this.walletsRepository.findOne({
       where: { user: { id: userId } },
     });

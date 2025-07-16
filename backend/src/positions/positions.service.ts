@@ -22,6 +22,18 @@ export class PositionsService {
     private readonly positionsRepository: Repository<Position>,
   ) {}
 
+  /**
+   * 특정 사용자의 모든 포지션을 조회합니다.
+   * @param userId 사용자 ID
+   * @returns 해당 사용자의 포지션 목록
+   */
+  async findAllByUserId(userId: string): Promise<Position[]> {
+    return this.positionsRepository.find({
+      where: { user: { id: userId } },
+      order: { createdAt: 'DESC' }, // 최신 포지션이 위로 오도록 정렬
+    });
+  }
+
   async createOrUpdatePosition(params: PositionParams): Promise<Position> {
     const { userId, symbol, side, quantity, entryPrice, leverage, margin } =
       params;

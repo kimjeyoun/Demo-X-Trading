@@ -49,3 +49,55 @@ export const createOrder = async (
     throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };
+
+
+
+// 백엔드의 Position 엔티티 타입과 맞춥니다.
+export interface Position {
+  id: string;
+  symbol: string;
+  side: 'LONG' | 'SHORT';
+  quantity: number;
+  entryPrice: number;
+  liquidationPrice: number;
+  leverage: number;
+  margin: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 백엔드의 Wallet 엔티티 타입과 맞춥니다.
+export interface Wallet {
+  id: string;
+  balance: number;
+}
+
+/**
+ * 현재 로그인된 사용자의 모든 포지션을 가져옵니다.
+ */
+export const getMyPositions = async (): Promise<Position[]> => {
+  try {
+    const response = await apiClient.get<Position[]>('/positions');
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || '포지션 정보를 가져오는데 실패했습니다.');
+    }
+    throw new Error('알 수 없는 오류가 발생했습니다.');
+  }
+};
+
+/**
+ * 현재 로그인된 사용자의 지갑 정보를 가져옵니다.
+ */
+export const getMyWallet = async (): Promise<Wallet> => {
+  try {
+    const response = await apiClient.get<Wallet>('/wallets');
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || '지갑 정보를 가져오는데 실패했습니다.');
+    }
+    throw new Error('알 수 없는 오류가 발생했습니다.');
+  }
+};
