@@ -11,6 +11,7 @@ import {
   type Position,
   type Wallet,
 } from "../services/orderService";
+import { socket } from '../services/socket';
 
 const TradingPageContainer = styled.div`
   display: grid;
@@ -50,9 +51,16 @@ const PositionStatusContainer = styled.div`
   min-height: 150px; /* 최소 높이 지정 */
 `;
 
+// Binance WebSocket 'trade' 이벤트의 데이터 타입
+interface TradeData {
+  p: string; // Price
+  // ... 다른 속성들
+}
+
 export const TradingPage = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [wallet, setWallet] = useState<Wallet | null>(null); // wallet 상태 추가
+  const [markPrice, setMarkPrice] = useState<number>(0); // 실시간 현재가(Mark Price) 상태
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,7 +105,21 @@ export const TradingPage = () => {
       await Promise.all([fetchPositions(), fetchWallet()]);
       setIsLoading(false);
     };
+
     initialFetch();
+
+    // WebSocket 연결 및 이벤트 핸들러 등록
+    socket.connect();
+    const handleTrade = (trade: TradeData) => {
+      setMarkPrice(parseFloat(trade.p));
+    };
+    socket.on('trade', handleTrade); // 'trade' 이벤트 구독
+
+    // 컴포넌트 언마운트 시 클린업
+    return () => {
+      socket.off('trade', handleTrade);
+      socket.disconnect();
+    };
   }, []);
 
   return (
@@ -114,6 +136,7 @@ export const TradingPage = () => {
           positions={positions}
           isLoading={isLoading}
           error={error}
+          markPrice={markPrice} 
         />
       </PositionStatusContainer>
     </TradingPageContainer>

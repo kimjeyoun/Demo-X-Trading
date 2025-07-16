@@ -55,3 +55,9 @@ export const PositionSideCell = styled.td<{ side: 'LONG' | 'SHORT' }>`
   color: ${({ side }) => (side === 'LONG' ? '#089981' : '#f23645')};
   font-weight: bold;
 `;
+
+// PNL 셀 스타일 추가
+export const PnlCell = styled.td<{ isPositive: boolean }>`
+  color: ${({ isPositive }) => (isPositive ? '#089981' : '#f23645')};
+  font-weight: 500;
+`;
