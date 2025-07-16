@@ -1,20 +1,15 @@
 // frontend/src/components/OrderPanel/index.tsx
 
-import { useState } from "react";
+import React, { useState } from "react";
 import * as S from "./styles";
-import { createOrder } from '../../services/orderService'; 
+import { createOrder, type OrderPayload, type Wallet } from '../../services/orderService'; 
 
-// 나중에 API 서비스를 통해 가져올 타입들 (임시 정의)
-interface OrderPayload {
-  symbol: string;
-  type: "MARKET" | "LIMIT";
-  side: "BUY" | "SELL";
-  quantity: number;
-  leverage: number;
-  price?: number; // 지정가 주문을 위해 옵셔널
+interface OrderPanelProps {
+  wallet: Wallet | null;
+  onOrderSuccess: () => void; // 아무 인자도 받지 않고 아무것도 반환하지 않는 함수 타입
 }
 
-const OrderPanel = () => {
+const OrderPanel: React.FC<OrderPanelProps> = ({ wallet, onOrderSuccess }) => {
   // 'BUY'(롱) 또는 'SELL'(숏)을 관리하는 상태
   const [positionSide, setPositionSide] = useState<"BUY" | "SELL">("BUY");
   // 수량 입력 (BTC)
@@ -46,7 +41,7 @@ const OrderPanel = () => {
       leverage: leverage,
     };
 
-        setIsLoading(true); // 로딩 시작
+    setIsLoading(true); // 로딩 시작
     setError(null); // 이전 에러 메시지 초기화
 
     try {
@@ -57,6 +52,9 @@ const OrderPanel = () => {
       
       // 성공 시 입력 필드 초기화
       setQuantity('');
+
+      // --- 여기가 핵심! 주문 성공 후 부모에게 알립니다. ---
+      onOrderSuccess(); 
 
     } catch (err: unknown) {
       // 서비스에서 던진 에러를 잡아서 상태에 저장
@@ -120,7 +118,7 @@ const OrderPanel = () => {
         <S.InfoGroup>
           <span>주문 가능 금액:</span>
           {/* TODO: 이슈 #10에서 실제 지갑 정보와 연동됩니다. */}
-          <span>10000.00 USDT</span>
+          {wallet ? `${Number(wallet.balance).toFixed(2)} USDT` : '...'}
         </S.InfoGroup>
       </S.Form>
 
