@@ -11,6 +11,8 @@ import {
 } from '../common/enums/order.enum';
 import { PositionsService } from '../positions/positions.service';
 import { WalletsService } from '../wallets/wallets.service';
+import { TransactionsService } from '../transactions/transactions.service';
+import { TransactionType } from '../transactions/entities/transaction.entity';
 
 @Injectable()
 export class OrdersService {
@@ -19,6 +21,7 @@ export class OrdersService {
     private readonly ordersRepository: Repository<Order>,
     private readonly positionsService: PositionsService,
     private readonly walletsService: WalletsService,
+    private readonly transactionsService: TransactionsService,
     // TODO: 나중에 BinanceApiService도 주입받아 실제 시장가를 가져와야 함
   ) {}
 
@@ -74,8 +77,24 @@ export class OrdersService {
       margin: marginRequired,
     });
 
-    // --- 6. 지갑 잔고에서 증거금 차감 ---
+    // --- 6. 지갑 잔고에서 증거금 차감 및 거래 내역(Transaction) 기록 ---
+    // 먼저 사용자 지갑 객체를 가져옵니다.
+    const wallet = await this.walletsService.findWalletByUserId(userId);
+    if (!wallet) {
+      throw new BadRequestException('사용자 지갑을 찾을 수 없습니다.');
+    }
+
+    // 6-1. 지갑 잔고 업데이트
     await this.walletsService.updateBalance(userId, -marginRequired);
+
+    // 6-2. 증거금 사용에 대한 거래 내역 생성
+    // (REALIZED_PNL은 포지션 종료 시점에 발생하므로, 지금은 증거금 사용에 대한 내역만 기록)
+    // 수수료 로직 추가 시, FEE 타입의 Transaction도 여기서 생성 가능
+    await this.transactionsService.create({
+      wallet: wallet,
+      type: TransactionType.REALIZED_PNL, // 지금은 '실현 손익'으로 분류 (추후 MARGIN 등으로 세분화 가능)
+      amount: -marginRequired, // 증거금은 자산에서 차감되므로 음수
+    });
 
     return { order: newOrder, position: newPosition };
   }

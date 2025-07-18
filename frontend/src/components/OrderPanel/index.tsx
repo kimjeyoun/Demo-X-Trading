@@ -76,13 +76,13 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ wallet, onOrderSuccess }) => {
     <S.OrderPanelContainer>
       <S.TabWrapper>
         <S.TabButton
-          active={positionSide === "BUY"}
+          $active={positionSide === "BUY"}
           onClick={() => setPositionSide("BUY")}
         >
           롱 (매수)
         </S.TabButton>
         <S.TabButton
-          active={positionSide === "SELL"}
+          $active={positionSide === "SELL"}
           onClick={() => setPositionSide("SELL")}
         >
           숏 (매도)

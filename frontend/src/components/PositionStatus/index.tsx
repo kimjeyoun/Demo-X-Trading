@@ -73,7 +73,7 @@ const PositionStatus: React.FC<PositionStatusProps> = ({
                   <td>{pos.quantity}</td>
                   <td>{Number(pos.entryPrice).toFixed(2)}</td>
                   <td>{markPrice.toFixed(2)}</td>
-                  <S.PnlCell isPositive={Number(pnl) >= 0}>
+                  <S.PnlCell $isPositive={Number(pnl) >= 0}>
                     {pnl} USDT ({pnlPercent}%)
                   </S.PnlCell>
                   <td>{pos.leverage}x</td>
