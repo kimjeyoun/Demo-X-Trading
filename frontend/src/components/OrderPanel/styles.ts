@@ -19,17 +19,17 @@ export const TabWrapper = styled.div`
   margin-bottom: 16px;
 `;
 
-export const TabButton = styled.button<{ active: boolean }>`
+export const TabButton = styled.button<{ $active: boolean }>`
   flex: 1;
   padding: 12px;
   background: transparent;
   border: none;
-  color: ${({ active }) => (active ? '#f0f0f0' : '#888')};
+  color: ${({ $active }) => ($active ? '#f0f0f0' : '#888')};
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  border-bottom: 2px solid ${({ active, children }) =>
-    active ? (children?.toString().includes('롱') ? '#089981' : '#f23645') : 'transparent'};
+  border-bottom: 2px solid ${({ $active, children }) =>
+    $active ? (children?.toString().includes('롱') ? '#089981' : '#f23645') : 'transparent'};
   transition: all 0.2s ease-in-out;
 
   &:hover {
