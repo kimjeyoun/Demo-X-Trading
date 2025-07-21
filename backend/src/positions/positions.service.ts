@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Position } from './entities/position.entity';
@@ -17,6 +17,8 @@ interface PositionParams {
 
 @Injectable()
 export class PositionsService {
+  private readonly logger = new Logger(PositionsService.name);
+
   constructor(
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
@@ -44,27 +46,63 @@ export class PositionsService {
     });
 
     if (existingPosition) {
-      // --- 여기가 수정될 부분입니다 ---
-      // 1. 기존 값들을 명시적으로 숫자로 변환합니다.
-      const existingQuantity = Number(existingPosition.quantity);
-      const existingMargin = Number(existingPosition.margin);
+      // --- [수정] 기존 포지션 업데이트(물타기) 로직 ---
 
-      // 2. 새로운 값(수량, 증거금)을 계산합니다.
-      const newQuantity = existingQuantity + quantity;
-      const newMargin = existingMargin + margin;
+      // 1. 기존 값과 신규 값을 숫자로 명확하게 준비
+      const existingQuantity = Number(existingPosition.quantity); // 기존 포지션의 수량
+      const existingEntryPrice = Number(existingPosition.entryPrice); // 기존 포지션의 진입 가격
+      const existingMargin = Number(existingPosition.margin); // 기존 포지션의 증거금
 
-      // TODO: 추후 평균 진입 가격(entryPrice) 재계산 로직 추가 필요
-      // const totalValue = (existingQuantity * existingPosition.entryPrice) + (quantity * entryPrice);
-      // existingPosition.entryPrice = totalValue / newQuantity;
+      const newOrderQuantity = quantity;
+      const newOrderEntryPrice = entryPrice;
+      const newOrderMargin = margin;
 
-      // 3. 계산된 숫자 값을 할당합니다.
-      existingPosition.quantity = newQuantity;
-      existingPosition.margin = newMargin;
+      // 2. 새로운 총 수량과 총 증거금을 계산합니다.
+      const totalQuantity = existingQuantity + newOrderQuantity;
+      const totalMargin = existingMargin + newOrderMargin;
+
+      // 3. 가중 평균을 이용하여 새로운 평균 진입 가격을 계산합니다.
+      // (기존 포지션의 총 가치 + 신규 주문의 총 가치) / 새로운 총 수량
+      const totalValue =
+        existingQuantity * existingEntryPrice +
+        newOrderQuantity * newOrderEntryPrice;
+      const averageEntryPrice = totalValue / totalQuantity;
+
+      // 4. 새로운 평균 진입 가격과 총 증거금을 바탕으로 강제 청산 가격을 재계산합니다.
+      let newLiquidationPrice: number;
+      if (side === PositionSide.LONG) {
+        newLiquidationPrice = averageEntryPrice - totalMargin / totalQuantity;
+      } else {
+        // SHORT
+        newLiquidationPrice = averageEntryPrice + totalMargin / totalQuantity;
+      }
+      const finalNewLiquidationPrice = Math.max(0, newLiquidationPrice);
+
+      this.logger.debug(
+        `[Update Position] Avg Price: ${averageEntryPrice}, Total Margin: ${totalMargin}, Total Qty: ${totalQuantity}, New Liq. Price: ${finalNewLiquidationPrice}`,
+      );
+
+      // 5. 계산된 모든 값을 기존 포지션 객체에 업데이트합니다.
+      existingPosition.quantity = totalQuantity;
+      existingPosition.margin = totalMargin;
+      existingPosition.entryPrice = averageEntryPrice;
+      existingPosition.liquidationPrice = finalNewLiquidationPrice;
+      // 레버리지는 첫 진입 시의 값을 유지하는 것이 일반적인 정책이므로 변경하지 않습니다.
 
       return this.positionsRepository.save(existingPosition);
     } else {
-      // 3. 기존 포지션이 없으면 새로 생성
-      // TODO: 청산 가격(liquidationPrice) 계산 로직 필요
+      let calculatedLiqPrice: number;
+      if (side === PositionSide.LONG) {
+        calculatedLiqPrice = entryPrice - margin / quantity;
+      } else {
+        calculatedLiqPrice = entryPrice + margin / quantity;
+      }
+      const finalLiqPrice = Math.max(0, calculatedLiqPrice);
+
+      this.logger.debug(
+        `[New Position] Entry: ${entryPrice}, Margin: ${margin}, Qty: ${quantity}, Calculated Liq. Price: ${calculatedLiqPrice}, Final Liq. Price: ${finalLiqPrice}`,
+      );
+
       const newPosition = this.positionsRepository.create({
         user: { id: userId },
         symbol,
@@ -73,8 +111,9 @@ export class PositionsService {
         entryPrice,
         leverage,
         margin,
-        liquidationPrice: 0, // 임시값
+        liquidationPrice: finalLiqPrice,
       });
+
       return this.positionsRepository.save(newPosition);
     }
   }
