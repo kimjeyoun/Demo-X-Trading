@@ -1,14 +1,20 @@
 // backend/src/binance/binance.service.ts
 
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import * as WebSocket from 'ws';
 import { EventsGateway } from 'src/events/events.gateway';
 
 @Injectable()
 export class BinanceApiService implements OnModuleInit {
+  private readonly logger = new Logger(BinanceApiService.name);
   private readonly apiKey: string;
   private readonly secretKey: string;
   // 바이낸스 선물 API 기본 URL
@@ -108,5 +114,32 @@ export class BinanceApiService implements OnModuleInit {
     ws.on('error', (error) => {
       console.error('Binance WebSocket Error:', error);
     });
+  }
+
+  /**
+   * [feat] 특정 심볼의 현재 시장가를 조회합니다.
+   * @param symbol 조회할 심볼 (예: 'BTCUSDT')
+   * @returns 현재 시장가 (숫자)
+   */
+  async getMarketPrice(symbol: string): Promise<number> {
+    const url = `${this.baseURL}/fapi/v1/ticker/price`;
+    try {
+      const response$ = this.httpService
+        .get(url, { params: { symbol } })
+        .pipe(map((resp) => resp.data));
+
+      const data = await firstValueFrom(response$);
+      console.log(`Current market price for ${symbol}:`, data.price);
+      // 바이낸스 API 응답: { "symbol": "BTCUSDT", "price": "50000.00", ... }
+      return parseFloat(data.price);
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch market price for ${symbol}:`,
+        error.response?.data || error.message,
+      );
+      throw new InternalServerErrorException(
+        `Failed to fetch market price for ${symbol}`,
+      );
+    }
   }
 }
