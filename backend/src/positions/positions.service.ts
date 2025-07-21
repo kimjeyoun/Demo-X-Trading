@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Position } from './entities/position.entity';
@@ -17,6 +17,8 @@ interface PositionParams {
 
 @Injectable()
 export class PositionsService {
+  private readonly logger = new Logger(PositionsService.name);
+
   constructor(
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
@@ -35,8 +37,7 @@ export class PositionsService {
   }
 
   async createOrUpdatePosition(params: PositionParams): Promise<Position> {
-    const { userId, symbol, side, quantity, entryPrice, leverage, margin } =
-      params;
+    const { userId, symbol, side, quantity, entryPrice, margin } = params;
 
     // 1. 동일한 종목, 동일한 방향의 기존 포지션이 있는지 확인
     const existingPosition = await this.positionsRepository.findOne({
@@ -44,8 +45,9 @@ export class PositionsService {
     });
 
     if (existingPosition) {
-      // --- 여기가 수정될 부분입니다 ---
-      // 1. 기존 값들을 명시적으로 숫자로 변환합니다.
+      // --- 기존 포지션 업데이트 (물타기) 로직 ---
+      // TODO: 이슈 #20의 심화 과제. 평균 진입가 및 청산가 재계산 로지 추가 필요
+      // 현재는 수량과 증거금만 업데이트합니다
       const existingQuantity = Number(existingPosition.quantity);
       const existingMargin = Number(existingPosition.margin);
 
@@ -63,19 +65,31 @@ export class PositionsService {
 
       return this.positionsRepository.save(existingPosition);
     } else {
-      // 3. 기존 포지션이 없으면 새로 생성
-      // TODO: 청산 가격(liquidationPrice) 계산 로직 필요
-      const newPosition = this.positionsRepository.create({
-        user: { id: userId },
-        symbol,
-        side,
-        quantity,
-        entryPrice,
-        leverage,
-        margin,
-        liquidationPrice: 0, // 임시값
-      });
-      return this.positionsRepository.save(newPosition);
+      if (!existingPosition) {
+        // 1. 청산 가격(liquidationPrice)을 계산합니다.
+        let calculatedLiqPrice: number;
+        if (side === PositionSide.LONG) {
+          calculatedLiqPrice = entryPrice - margin / quantity;
+        } else {
+          calculatedLiqPrice = entryPrice + margin / quantity;
+        }
+
+        // 2. [수정] 계산된 청산 가격이 음수일 경우 0으로 조정합니다.
+        const finalLiqPrice = Math.max(0, calculatedLiqPrice);
+
+        this.logger.debug(
+          `[New Position] Entry: ${entryPrice}, Margin: ${margin}, Qty: ${quantity}, Calculated Liq. Price: ${calculatedLiqPrice}, Final Liq. Price: ${finalLiqPrice}`,
+        );
+
+        // 3. 최종 청산 가격을 포함하여 새로운 포지션 엔티티를 생성합니다.
+        const newPosition = this.positionsRepository.create({
+          ...params, // DTO를 그대로 사용하여 간결화
+          user: { id: userId },
+          liquidationPrice: finalLiqPrice, // 최종 조정된 값으로 저장
+        });
+
+        return this.positionsRepository.save(newPosition);
+      }
     }
   }
 }
