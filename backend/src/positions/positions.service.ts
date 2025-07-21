@@ -45,51 +45,75 @@ export class PositionsService {
     });
 
     if (existingPosition) {
-      // --- 기존 포지션 업데이트 (물타기) 로직 ---
-      // TODO: 이슈 #20의 심화 과제. 평균 진입가 및 청산가 재계산 로지 추가 필요
-      // 현재는 수량과 증거금만 업데이트합니다
-      const existingQuantity = Number(existingPosition.quantity);
-      const existingMargin = Number(existingPosition.margin);
+      // --- [수정] 기존 포지션 업데이트(물타기) 로직 ---
 
-      // 2. 새로운 값(수량, 증거금)을 계산합니다.
-      const newQuantity = existingQuantity + quantity;
-      const newMargin = existingMargin + margin;
+      // 1. 기존 값과 신규 값을 숫자로 명확하게 준비
+      const existingQuantity = Number(existingPosition.quantity); // 기존 포지션의 수량
+      const existingEntryPrice = Number(existingPosition.entryPrice); // 기존 포지션의 진입 가격
+      const existingMargin = Number(existingPosition.margin); // 기존 포지션의 증거금
 
-      // TODO: 추후 평균 진입 가격(entryPrice) 재계산 로직 추가 필요
-      // const totalValue = (existingQuantity * existingPosition.entryPrice) + (quantity * entryPrice);
-      // existingPosition.entryPrice = totalValue / newQuantity;
+      const newOrderQuantity = quantity;
+      const newOrderEntryPrice = entryPrice;
+      const newOrderMargin = margin;
 
-      // 3. 계산된 숫자 값을 할당합니다.
-      existingPosition.quantity = newQuantity;
-      existingPosition.margin = newMargin;
+      // 2. 새로운 총 수량과 총 증거금을 계산합니다.
+      const totalQuantity = existingQuantity + newOrderQuantity;
+      const totalMargin = existingMargin + newOrderMargin;
+
+      // 3. 가중 평균을 이용하여 새로운 평균 진입 가격을 계산합니다.
+      // (기존 포지션의 총 가치 + 신규 주문의 총 가치) / 새로운 총 수량
+      const totalValue =
+        existingQuantity * existingEntryPrice +
+        newOrderQuantity * newOrderEntryPrice;
+      const averageEntryPrice = totalValue / totalQuantity;
+
+      // 4. 새로운 평균 진입 가격과 총 증거금을 바탕으로 강제 청산 가격을 재계산합니다.
+      let newLiquidationPrice: number;
+      if (side === PositionSide.LONG) {
+        newLiquidationPrice = averageEntryPrice - totalMargin / totalQuantity;
+      } else {
+        // SHORT
+        newLiquidationPrice = averageEntryPrice + totalMargin / totalQuantity;
+      }
+      const finalNewLiquidationPrice = Math.max(0, newLiquidationPrice);
+
+      this.logger.debug(
+        `[Update Position] Avg Price: ${averageEntryPrice}, Total Margin: ${totalMargin}, Total Qty: ${totalQuantity}, New Liq. Price: ${finalNewLiquidationPrice}`,
+      );
+
+      // 5. 계산된 모든 값을 기존 포지션 객체에 업데이트합니다.
+      existingPosition.quantity = totalQuantity;
+      existingPosition.margin = totalMargin;
+      existingPosition.entryPrice = averageEntryPrice;
+      existingPosition.liquidationPrice = finalNewLiquidationPrice;
+      // 레버리지는 첫 진입 시의 값을 유지하는 것이 일반적인 정책이므로 변경하지 않습니다.
 
       return this.positionsRepository.save(existingPosition);
     } else {
-      if (!existingPosition) {
-        // 1. 청산 가격(liquidationPrice)을 계산합니다.
-        let calculatedLiqPrice: number;
-        if (side === PositionSide.LONG) {
-          calculatedLiqPrice = entryPrice - margin / quantity;
-        } else {
-          calculatedLiqPrice = entryPrice + margin / quantity;
-        }
-
-        // 2. [수정] 계산된 청산 가격이 음수일 경우 0으로 조정합니다.
-        const finalLiqPrice = Math.max(0, calculatedLiqPrice);
-
-        this.logger.debug(
-          `[New Position] Entry: ${entryPrice}, Margin: ${margin}, Qty: ${quantity}, Calculated Liq. Price: ${calculatedLiqPrice}, Final Liq. Price: ${finalLiqPrice}`,
-        );
-
-        // 3. 최종 청산 가격을 포함하여 새로운 포지션 엔티티를 생성합니다.
-        const newPosition = this.positionsRepository.create({
-          ...params, // DTO를 그대로 사용하여 간결화
-          user: { id: userId },
-          liquidationPrice: finalLiqPrice, // 최종 조정된 값으로 저장
-        });
-
-        return this.positionsRepository.save(newPosition);
+      let calculatedLiqPrice: number;
+      if (side === PositionSide.LONG) {
+        calculatedLiqPrice = entryPrice - margin / quantity;
+      } else {
+        calculatedLiqPrice = entryPrice + margin / quantity;
       }
+      const finalLiqPrice = Math.max(0, calculatedLiqPrice);
+
+      this.logger.debug(
+        `[New Position] Entry: ${entryPrice}, Margin: ${margin}, Qty: ${quantity}, Calculated Liq. Price: ${calculatedLiqPrice}, Final Liq. Price: ${finalLiqPrice}`,
+      );
+
+      const newPosition = this.positionsRepository.create({
+        user: { id: userId },
+        symbol,
+        side,
+        quantity,
+        entryPrice,
+        leverage,
+        margin,
+        liquidationPrice: finalLiqPrice,
+      });
+
+      return this.positionsRepository.save(newPosition);
     }
   }
 }
