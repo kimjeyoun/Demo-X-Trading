@@ -6,6 +6,7 @@ import { PositionsModule } from '../positions/positions.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { BinanceModule } from '../binance/binance.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
     WalletsModule,
     PositionsModule,
     TransactionsModule,
+    BinanceModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
