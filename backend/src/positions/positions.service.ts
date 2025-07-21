@@ -37,7 +37,8 @@ export class PositionsService {
   }
 
   async createOrUpdatePosition(params: PositionParams): Promise<Position> {
-    const { userId, symbol, side, quantity, entryPrice, margin } = params;
+    const { userId, symbol, side, quantity, entryPrice, leverage, margin } =
+      params;
 
     // 1. 동일한 종목, 동일한 방향의 기존 포지션이 있는지 확인
     const existingPosition = await this.positionsRepository.findOne({
