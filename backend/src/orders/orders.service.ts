@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -24,6 +25,7 @@ export class OrdersService {
     private readonly walletsService: WalletsService,
     private readonly transactionsService: TransactionsService,
     private readonly binanceApiService: BinanceApiService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createOrder(userId: string, createOrderDto: CreateOrderDto) {
@@ -78,8 +80,8 @@ export class OrdersService {
       margin: marginRequired,
     });
 
-    // --- 6. 지갑 잔고에서 증거금 차감 및 거래 내역(Transaction) 기록 ---
-    // 먼저 사용자 지갑 객체를 가져옵니다.
+    // 6단계 로직을 '자산 변동 처리'로 통합하여 확장합니다.
+    // --- 6. 자산 변동 처리 (증거금 및 수수료) ---
     const wallet = await this.walletsService.findWalletByUserId(userId);
     if (!wallet) {
       throw new BadRequestException('사용자 지갑을 찾을 수 없습니다.');
@@ -87,14 +89,22 @@ export class OrdersService {
 
     // 6-1. 지갑 잔고 업데이트
     await this.walletsService.updateBalance(userId, -marginRequired);
-
-    // 6-2. 증거금 사용에 대한 거래 내역 생성
-    // (REALIZED_PNL은 포지션 종료 시점에 발생하므로, 지금은 증거금 사용에 대한 내역만 기록)
-    // 수수료 로직 추가 시, FEE 타입의 Transaction도 여기서 생성 가능
     await this.transactionsService.create({
       wallet: wallet,
-      type: TransactionType.REALIZED_PNL, // 지금은 '실현 손익'으로 분류 (추후 MARGIN 등으로 세분화 가능)
-      amount: -marginRequired, // 증거금은 자산에서 차감되므로 음수
+      type: TransactionType.REALIZED_PNL, // 증거금 사용은 손익 실현으로 간주
+      amount: -marginRequired,
+    });
+
+    // 6-2. [신규] 거래 수수료 계산 및 차감, 기록
+    const feeRate = this.configService.get<number>('TRADE_FEE_RATE');
+    const positionValue = marketPrice * quantity; // 포지션 총 가치
+    const tradeFee = positionValue * feeRate; // 수수료 계산
+
+    await this.walletsService.updateBalance(userId, -tradeFee);
+    await this.transactionsService.create({
+      wallet: wallet,
+      type: TransactionType.FEE, // 'FEE' 타입으로 기록
+      amount: -tradeFee, // 수수료는 차감되므로 음수
     });
 
     return { order: newOrder, position: newPosition };
