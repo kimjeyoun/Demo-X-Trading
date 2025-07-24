@@ -51,8 +51,8 @@ export const Table = styled.table`
   }
 `;
 
-export const PositionSideCell = styled.td<{ side: 'LONG' | 'SHORT' }>`
-  color: ${({ side }) => (side === 'LONG' ? '#089981' : '#f23645')};
+export const PositionSideCell = styled.td<{ $side: 'LONG' | 'SHORT' }>`
+  color: ${({ $side }) => ($side === 'LONG' ? '#089981' : '#f23645')};
   font-weight: bold;
 `;
 
@@ -60,4 +60,19 @@ export const PositionSideCell = styled.td<{ side: 'LONG' | 'SHORT' }>`
 export const PnlCell = styled.td<{ $isPositive: boolean }>`
   color: ${({ $isPositive }) => ($isPositive ? '#089981' : '#f23645')};
   font-weight: 500;
+`;
+
+export const CloseButton = styled.button`
+  background-color: #373c4a;
+  color: #d1d4dc;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #4a5060;
+  }
 `;

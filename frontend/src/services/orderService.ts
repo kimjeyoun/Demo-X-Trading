@@ -101,3 +101,20 @@ export const getMyWallet = async (): Promise<Wallet> => {
     throw new Error('알 수 없는 오류가 발생했습니다.');
   }
 };
+
+
+
+/**
+ * 특정 ID의 포지션을 종료합니다.
+ * @param positionId 종료할 포지션의 ID
+ * [기능 구현] 포지션을 종료하는 API를 호출하는 `closePosition` 함수를 추가합니다.
+ */
+export const closePosition = async (positionId: string): Promise<void> => {
+  try {
+    await apiClient.delete(`/positions/${positionId}`);
+  } catch (error) {
+    console.error(`Failed to close position ${positionId}:`, error);
+    // 실제 애플리케이션에서는 사용자에게 보여줄 에러 메시지를 throw하는 것이 좋습니다.
+    throw new Error('포지션 종료에 실패했습니다.');
+  }
+};
