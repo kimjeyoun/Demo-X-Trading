@@ -1,8 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Position } from './entities/position.entity';
 import { PositionSide } from '../common/enums/order.enum';
+import { WalletsService } from '../wallets/wallets.service';
+import { TransactionsService } from '../transactions/transactions.service';
+import { BinanceApiService } from '../binance/binance.service';
+import { TransactionType } from '../transactions/entities/transaction.entity';
 
 // createOrUpdatePosition 메소드에 전달될 데이터 타입을 정의
 interface PositionParams {
@@ -22,6 +31,9 @@ export class PositionsService {
   constructor(
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
+    private readonly walletsService: WalletsService,
+    private readonly transactionsService: TransactionsService,
+    private readonly binanceApiService: BinanceApiService,
   ) {}
 
   /**
@@ -116,5 +128,68 @@ export class PositionsService {
 
       return this.positionsRepository.save(newPosition);
     }
+  }
+
+  /**
+   * [신규 구현] 특정 포지션을 시장가로 종료하고 손익을 정산합니다.
+   * @param positionId 종료할 포지션의 ID
+   * @param userId 요청한 사용자의 ID
+   * [기능 구현] 포지션 종료 및 손익 실현을 처리하는 `closePosition` 메소드를 구현합니다.
+   * 여러 서비스(Binance, Wallets, Transactions)와 협력하여 포지션 종료 트랜잭션을 처리합니다.
+   */
+  async closePosition(
+    positionId: string,
+    userId: string,
+  ): Promise<{ realizedPnl: number }> {
+    // 1. 포지션 조회 및 소유권 확인
+    const position = await this.positionsRepository.findOne({
+      where: { id: positionId },
+      relations: ['user'], // 소유자 정보를 함께 가져오기 위함
+    });
+
+    if (!position) {
+      throw new NotFoundException(`Position with ID ${positionId} not found.`);
+    }
+    if (position.user.id !== userId) {
+      throw new ForbiddenException(
+        'You are not allowed to close this position.',
+      );
+    }
+
+    // 2. 현재 시장가 조회
+    const closePrice = await this.binanceApiService.getMarketPrice(
+      position.symbol,
+    );
+
+    // 3. 실현 손익(Realized PNL) 계산
+    const quantity = Number(position.quantity);
+    const entryPrice = Number(position.entryPrice);
+    let realizedPnl: number;
+
+    if (position.side === PositionSide.LONG) {
+      realizedPnl = (closePrice - entryPrice) * quantity;
+    } else {
+      // SHORT
+      realizedPnl = (entryPrice - closePrice) * quantity;
+    }
+
+    // 4. 지갑에 자산 반환 (초기 증거금 + 실현 손익)
+    const margin = Number(position.margin);
+    const amountToReturn = margin + realizedPnl;
+    await this.walletsService.updateBalance(userId, amountToReturn);
+
+    // 5. 손익 내역을 Transaction으로 기록
+    const wallet = await this.walletsService.findWalletByUserId(userId);
+    await this.transactionsService.create({
+      wallet,
+      type: TransactionType.REALIZED_PNL,
+      amount: realizedPnl,
+    });
+
+    // 6. 포지션 삭제
+    await this.positionsRepository.remove(position);
+
+    this.logger.debug(`Position ${positionId} closed. PNL: ${realizedPnl}`);
+    return { realizedPnl };
   }
 }

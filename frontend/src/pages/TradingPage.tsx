@@ -136,7 +136,8 @@ export const TradingPage = () => {
           positions={positions}
           isLoading={isLoading}
           error={error}
-          markPrice={markPrice} 
+          markPrice={markPrice}
+          onPositionClosed={handleOrderSuccess}
         />
       </PositionStatusContainer>
     </TradingPageContainer>
