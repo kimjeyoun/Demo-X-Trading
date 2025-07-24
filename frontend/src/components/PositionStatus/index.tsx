@@ -52,7 +52,7 @@ const PositionStatus: React.FC<PositionStatusProps> = ({
       let message;
       if (err instanceof Error) message = err.message;
 
-      alert(`포지션 종료에 실패했습니다: ${message || "알 수 없는 오류"}`);
+      alert(`${message || "알 수 없는 오류"}`);
     }
   };
 

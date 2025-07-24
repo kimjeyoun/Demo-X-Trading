@@ -1,9 +1,10 @@
 // backend/src/binance/binance.module.ts
 
-import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios'; // HttpModule 임포트
+import { Module, forwardRef } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { BinanceApiService } from './binance.service';
 import { EventsModule } from '../events/events.module';
+import { PositionsModule } from '../positions/positions.module';
 
 @Module({
   imports: [
@@ -13,8 +14,9 @@ import { EventsModule } from '../events/events.module';
       maxRedirects: 5, // 최대 리다이렉트 횟수
     }),
     EventsModule,
+    forwardRef(() => PositionsModule),
   ],
-  providers: [BinanceApiService], // 서비스는 다음 단계에서 추가
+  providers: [BinanceApiService],
   exports: [BinanceApiService],
 })
 export class BinanceModule {}
