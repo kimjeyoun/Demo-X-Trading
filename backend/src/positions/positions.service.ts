@@ -1,5 +1,7 @@
 import {
   Injectable,
+  Inject,
+  forwardRef,
   Logger,
   NotFoundException,
   ForbiddenException,
@@ -33,6 +35,7 @@ export class PositionsService {
     private readonly positionsRepository: Repository<Position>,
     private readonly walletsService: WalletsService,
     private readonly transactionsService: TransactionsService,
+    @Inject(forwardRef(() => BinanceApiService))
     private readonly binanceApiService: BinanceApiService,
   ) {}
 
@@ -131,11 +134,11 @@ export class PositionsService {
   }
 
   /**
-   * [신규 구현] 특정 포지션을 시장가로 종료하고 손익을 정산합니다.
+   * 특정 포지션을 시장가로 종료하고 손익을 정산
    * @param positionId 종료할 포지션의 ID
    * @param userId 요청한 사용자의 ID
-   * [기능 구현] 포지션 종료 및 손익 실현을 처리하는 `closePosition` 메소드를 구현합니다.
-   * 여러 서비스(Binance, Wallets, Transactions)와 협력하여 포지션 종료 트랜잭션을 처리합니다.
+   * [기능 구현] 포지션 종료 및 손익 실현을 처리하는 `closePosition` 메소드를 구현
+   * 여러 서비스(Binance, Wallets, Transactions)와 협력하여 포지션 종료 트랜잭션을 처리
    */
   async closePosition(
     positionId: string,
@@ -191,5 +194,31 @@ export class PositionsService {
 
     this.logger.debug(`Position ${positionId} closed. PNL: ${realizedPnl}`);
     return { realizedPnl };
+  }
+
+  /**
+   * 청산 대상 포지션을 찾음
+   * @param markPrice 현재 시장가
+   * @returns 청산되어야 할 포지션들의 배열
+   * 현재 시장가를 기준으로 청산되어야 할 모든 포지션을 조회하는 `findLiquidatablePositions` 메소드를 추가
+   * 이 메소드는 롱/숏 포지션의 청산 조건을 각각 검사하여 대상 목록을 반환
+   */
+  async findLiquidatablePositions(markPrice: number): Promise<Position[]> {
+    const openPositions = await this.positionsRepository.find({
+      relations: ['user'],
+    }); // DB에서 모든 오픈 포지션을 가져옵니다.
+
+    const liquidatablePositions = openPositions.filter((position) => {
+      const liquidationPrice = Number(position.liquidationPrice);
+      if (position.side === PositionSide.LONG) {
+        // 롱 포지션은 시장가가 청산가 이하로 떨어지면 청산 대상입니다.
+        return markPrice <= liquidationPrice;
+      } else {
+        // 숏 포지션은 시장가가 청산가 이상으로 올라가면 청산 대상입니다.
+        return markPrice >= liquidationPrice;
+      }
+    });
+
+    return liquidatablePositions;
   }
 }

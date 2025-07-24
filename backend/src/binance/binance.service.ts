@@ -2,6 +2,8 @@
 
 import {
   Injectable,
+  Inject,
+  forwardRef,
   OnModuleInit,
   InternalServerErrorException,
   Logger,
@@ -11,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, map } from 'rxjs';
 import * as WebSocket from 'ws';
 import { EventsGateway } from 'src/events/events.gateway';
+import { PositionsService } from 'src/positions/positions.service';
 
 @Injectable()
 export class BinanceApiService implements OnModuleInit {
@@ -24,6 +27,8 @@ export class BinanceApiService implements OnModuleInit {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly eventsGateway: EventsGateway,
+    @Inject(forwardRef(() => PositionsService))
+    private readonly positionsService: PositionsService,
   ) {
     // .env에서 API 키를 안전하게 가져옴
     this.apiKey = this.configService.getOrThrow<string>('BINANCE_API_KEY');
@@ -54,6 +59,31 @@ export class BinanceApiService implements OnModuleInit {
       }
     } catch (error) {
       console.error('❌ Error pinging Binance API:', error.message);
+    }
+  }
+
+  /**
+   * [신규 추가] 자동 청산 로직을 처리하는 비동기 메소드
+   * @param markPrice 현재 시장가
+   */
+  private async handleLiquidationCheck(markPrice: number): Promise<void> {
+    try {
+      const liquidatablePositions =
+        await this.positionsService.findLiquidatablePositions(markPrice);
+
+      if (liquidatablePositions.length > 0) {
+        this.logger.warn(
+          `Found ${liquidatablePositions.length} positions to liquidate at price ${markPrice}`,
+        );
+
+        const liquidationPromises = liquidatablePositions.map((position) =>
+          this.positionsService.closePosition(position.id, position.user.id),
+        );
+
+        await Promise.all(liquidationPromises);
+      }
+    } catch (error) {
+      this.logger.error('Error during liquidation check:', error);
     }
   }
 
@@ -98,6 +128,10 @@ export class BinanceApiService implements OnModuleInit {
           } else if (message.stream.endsWith('@aggTrade')) {
             // 체결 데이터 처리 (클라이언트에 'trade' 이벤트로 전송)
             this.eventsGateway.server.emit('trade', message.data);
+
+            const markPrice = parseFloat(message.data.p);
+
+            void this.handleLiquidationCheck(markPrice);
           }
         }
       } catch (error) {
