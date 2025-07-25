@@ -1,6 +1,7 @@
 // backend/src/app.module.ts
 
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PositionsModule } from './positions/positions.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { FundingModule } from './funding/funding.module';
 
 // 엔티티 임포트
 import { User } from './users/entities/user.entity';
@@ -24,6 +26,8 @@ import { Transaction } from './transactions/entities/transaction.entity';
 
 @Module({
   imports: [
+    DiscoveryModule,
+
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -66,6 +70,7 @@ import { Transaction } from './transactions/entities/transaction.entity';
     PositionsModule,
     WalletsModule,
     TransactionsModule,
+    FundingModule,
   ],
   controllers: [AppController],
   providers: [AppService, EventsGateway],
