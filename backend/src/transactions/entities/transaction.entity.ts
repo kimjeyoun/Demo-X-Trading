@@ -16,6 +16,7 @@ export enum TransactionType {
   WITHDRAW = 'WITHDRAW', // 출금
   REALIZED_PNL = 'REALIZED_PNL', // 실현 손익
   FEE = 'FEE', // 수수료
+  FUNDING_FEE = 'FUNDING_FEE', // 펀딩비
 }
 
 @Entity({ name: 'transactions' })

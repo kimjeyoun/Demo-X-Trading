@@ -1,6 +1,6 @@
 // backend/src/binance/binance.module.ts
 
-import { Module, forwardRef } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { BinanceApiService } from './binance.service';
 import { EventsModule } from '../events/events.module';

@@ -137,7 +137,7 @@ export class PositionsService {
    * 특정 포지션을 시장가로 종료하고 손익을 정산
    * @param positionId 종료할 포지션의 ID
    * @param userId 요청한 사용자의 ID
-   * [기능 구현] 포지션 종료 및 손익 실현을 처리하는 `closePosition` 메소드를 구현
+   * 포지션 종료 및 손익 실현을 처리하는 `closePosition` 메소드를 구현
    * 여러 서비스(Binance, Wallets, Transactions)와 협력하여 포지션 종료 트랜잭션을 처리
    */
   async closePosition(
@@ -220,5 +220,9 @@ export class PositionsService {
     });
 
     return liquidatablePositions;
+  }
+
+  async findAllOpenPositions(): Promise<Position[]> {
+    return this.positionsRepository.find({ relations: ['user'] });
   }
 }
