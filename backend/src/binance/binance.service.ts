@@ -176,4 +176,34 @@ export class BinanceApiService implements OnModuleInit {
       );
     }
   }
+
+  /**
+   * 특정 심볼의 현재 펀딩비율을 조회
+   * @param symbol 조회할 심볼 (예: 'BTCUSDT')
+   * @returns 현재 펀딩비율 (숫자)
+   */
+  async getFundingRate(symbol: string): Promise<number> {
+    const url = `${this.baseURL}/fapi/v1/fundingRate`;
+    try {
+      const response$ = this.httpService
+        .get(url, { params: { symbol } })
+        .pipe(map((resp) => resp.data));
+      const data = await firstValueFrom(response$);
+      // API는 배열을 반환하므로, 해당 심볼의 데이터를 찾아야 합니다.
+      const fundingRateInfo = data.find((item) => item.symbol === symbol);
+      if (!fundingRateInfo) {
+        throw new Error(`Funding rate for ${symbol} not found.`);
+      }
+      // fundingRate가 문자열이므로 숫자로 변환하여 반환
+      return parseFloat(fundingRateInfo.fundingRate);
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch funding rate for ${symbol}:`,
+        error.message,
+      );
+      throw new InternalServerErrorException(
+        `Failed to fetch funding rate for ${symbol}`,
+      );
+    }
+  }
 }
